@@ -67,26 +67,7 @@ function App() {
     <>
       <div className="app-root">
 
-        {/* ── NAV ── */}
-        <nav className="nav-bar">
-          <span className="nav-brand select-none">Gallery</span>
-
-          {image.length > 0 && (
-            <div className="nav-center">
-              <span className="nav-counter">{paddedIndex}</span>
-              <span style={{ opacity: 0.3 }}>/</span>
-              <span>{paddedTotal}</span>
-            </div>
-          )}
-
-          <div className="nav-right">
-            <span className="hint-text">← → navigate</span>
-            <button className="upload-btn" onClick={handleInput}>
-              + Upload
-            </button>
-          </div>
-        </nav>
-
+     
         {/* ── STAGE ── */}
         <main className="stage">
           <div className="frame-wrap">
