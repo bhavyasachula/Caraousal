@@ -1,138 +1,79 @@
-import { useEffect, useRef, useState } from 'react'
-import axios from 'axios'
+import { useEffect, useState } from 'react'
 import './App.css'
 
-function App() {
-  const [index, setIndex] = useState(0)
-  const [showinput, setShowInput] = useState(false)
-  const [fadeKey, setFadeKey] = useState(0)
-  const intervalref = useRef(null)
-  const [image, setgetImages] = useState([])
-  const url = useRef()
+import { fetchImages, uploadImage } from './api/imageApi'
+import { useSlider } from './hooks/useSlider'
 
-  async function getImagesUrl() {
-    const response = await axios.get("http://localhost:2000/fetchUrl")
-    setgetImages(response.data)
-  }
+import Navbar      from './components/Navbar'
+import ImageFrame  from './components/ImageFrame'
+import DotsRow     from './components/DotsRow'
+import EmptyState  from './components/EmptyState'
+import UploadModal from './components/UploadModal'
+
+function App() {
+  const [images, setImages] = useState([])
+  const [showModal, setShowModal] = useState(false)
+
+  const { index, fadeKey, nextImg, prevImg, goTo, stopSlider, startSlider } = useSlider(images)
 
   useEffect(() => {
-    getImagesUrl()
+    fetchImages().then(setImages).catch(console.error)
   }, [])
 
-  function nextImg() {
-    setIndex((index + 1) % image.length)
-    setFadeKey(k => k + 1)
-  }
-
-  function prevImg() {
-    setIndex(index === 0 ? image.length - 1 : index - 1)
-    setFadeKey(k => k + 1)
-  }
-
-  useEffect(() => {
-    intervalref.current = setInterval(() => {
-      setIndex(prev => (prev + 1) % image.length)
-      setFadeKey(k => k + 1)
-    }, 3000)
-    return () => clearInterval(intervalref.current)
-  }, [image.length])
-
-  const handleInput = () => setShowInput(!showinput)
-
-  const stopSlider = () => clearInterval(intervalref.current)
-
-  const startSlider = () => {
-    clearInterval(intervalref.current)
-    intervalref.current = setInterval(() => {
-      setIndex(prev => (prev + 1) % image.length)
-      setFadeKey(k => k + 1)
-    }, 2500)
-  }
-
-  const handleForm = async (e) => {
-    e.preventDefault()
+  const handleUpload = async (url) => {
     try {
-      await axios.post("http://localhost:2000/upload", { url: url.current.value })
+      await uploadImage(url)
+      const updated = await fetchImages()
+      setImages(updated)
     } catch (error) {
-      console.log(error)
+      console.error(error)
+    } finally {
+      setShowModal(false)
     }
-    setShowInput(false)
-    url.current.value = ""
   }
-
-  const paddedIndex = String(index + 1).padStart(2, '0')
-  const paddedTotal = String(image.length).padStart(2, '0')
 
   return (
-    <>
-      <div className="app-root">
+    <div className="app-root">
 
-     
-        {/* ── STAGE ── */}
-        <main className="stage">
-          <div className="frame-wrap">
+      <Navbar
+        totalImages={images.length}
+        currentIndex={index}
+        onUploadClick={() => setShowModal(true)}
+      />
 
-            {image.length > 0 ? (
-              <>
-                <button className="nav-arrow prev" onClick={prevImg} aria-label="Previous">&#8592;</button>
-                <button className="nav-arrow next" onClick={nextImg} aria-label="Next">&#8594;</button>
+      <main className="stage">
+        <div className="frame-wrap">
+          {images.length > 0 ? (
+            <>
+              <ImageFrame
+                src={images[index]}
+                index={index}
+                fadeKey={fadeKey}
+                onPrev={prevImg}
+                onNext={nextImg}
+                onMouseEnter={stopSlider}
+                onMouseLeave={startSlider}
+              />
+              <DotsRow
+                total={images.length}
+                activeIndex={index}
+                onDotClick={goTo}
+              />
+            </>
+          ) : (
+            <EmptyState />
+          )}
+        </div>
+      </main>
 
-                <div
-                  className="image-frame"
-                  onMouseEnter={stopSlider}
-                  onMouseLeave={startSlider}
-                >
-                  <img key={fadeKey} src={image[index]} alt={`Slide ${index + 1}`} />
-                </div>
+      {showModal && (
+        <UploadModal
+          onClose={() => setShowModal(false)}
+          onSubmit={handleUpload}
+        />
+      )}
 
-                {/* filmstrip dots */}
-                <div className="dots-row">
-                  {image.map((_, i) => (
-                    <button
-                      key={i}
-                      className={`dot ${i === index ? 'active' : ''}`}
-                      onClick={() => { setIndex(i); setFadeKey(k => k + 1) }}
-                      aria-label={`Go to slide ${i + 1}`}
-                    />
-                  ))}
-                </div>
-              </>
-            ) : (
-              <div className="empty-state">
-                <div className="empty-icon">⬚</div>
-                <p className="empty-text">No images yet — upload one to begin</p>
-              </div>
-            )}
-
-          </div>
-        </main>
-
-        {/* ── UPLOAD MODAL ── */}
-        {showinput && (
-          <div className="modal-backdrop" onClick={() => setShowInput(false)}>
-            <div className="modal-box" onClick={e => e.stopPropagation()}>
-              <p className="modal-title">Add Image</p>
-
-              <form onSubmit={handleForm}>
-                <label className="modal-label">Image URL</label>
-                <input
-                  type="text"
-                  ref={url}
-                  placeholder="https://example.com/photo.jpg"
-                  className="modal-input"
-                  autoFocus
-                />
-                <div className="modal-actions">
-                  <button type="submit" className="btn-submit">Add to Gallery</button>
-                  <button type="button" className="btn-close" onClick={() => setShowInput(false)}>Cancel</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
-      </div>
-    </>
+    </div>
   )
 }
 
